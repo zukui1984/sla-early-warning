@@ -1,0 +1,10 @@
+|--- assignment_group = Group 70 <= 0.50
+|   |--- assignment_group = Group 64 <= 0.50
+|   |   |--- class: 1
+|   |--- assignment_group = Group 64 >  0.50
+|   |   |--- class: 0
+|--- assignment_group = Group 70 >  0.50
+|   |--- subcategory = Subcategory 43 <= 0.50
+|   |   |--- class: 0
+|   |--- subcategory = Subcategory 43 >  0.50
+|   |   |--- class: 1
