@@ -1,0 +1,312 @@
+{
+  "name": "SLA Early-Warning alert",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "c6e40aee-c095-4f0e-b78b-fd1da8c85bfb",
+      "name": "Run manually",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "1a3b5ea9-c325-4089-83d7-ae90df685bf9",
+      "name": "Every morning at 8:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://raw.githubusercontent.com/zukui1984/sla-early-warning/master/data/predictions.csv",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "8c06c126-d6c2-4bb3-a161-ff2476437b95",
+      "name": "Get scored tickets from GitHub",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "3c12b13e-f807-463d-acab-508ca404e0b4",
+      "name": "Read CSV",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        448,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "High",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1e535320-946e-4d45-bfc7-446c614b435b",
+      "name": "Keep only High risk",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        656,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "sortFieldsUi": {
+          "sortField": [
+            {
+              "fieldName": "risk_score",
+              "order": "descending"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d5cc2771-886a-438b-872c-47c6595c36d6",
+      "name": "Highest risk first",
+      "type": "n8n-nodes-base.sort",
+      "typeVersion": 1,
+      "position": [
+        880,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 5
+      },
+      "id": "4bb1ee33-3c2a-46d1-97e7-65386c7ff110",
+      "name": "Top 5 tickets",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1104,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "tickets",
+        "options": {}
+      },
+      "id": "0b36f8f3-793b-4655-b2dd-c76057901c44",
+      "name": "Combine into one list",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1328,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "subject",
+              "value": "SLA Early-Warning: high-risk tickets",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "message",
+              "value": "={{ 'SLA Early-Warning: ' + $json.tickets.length + ' high-risk tickets need attention\\n\\n' + $json.tickets.map((t, i) => (i + 1) + '. Ticket ' + t.number + '\\n' + '   Risk score: ' + Math.round(Number(t.risk_score) * 100) + '% (status: ' + t.status + ')\\n' + '   Priority: ' + t.priority + ' | Group: ' + t.assignment_group + ' | Opened: ' + t.opened_at + '\\n' + '   Main reasons: ' + ([t.reason_1, t.reason_2, t.reason_3].filter(r => r).join('; ') || 'no single strong factor') + '\\n' + '   Suggested action: check the routing now and escalate if needed').join('\\n\\n') + '\\n\\nThis is a warning from a prediction model. The team lead makes the final decision.' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "16de2e70-6b09-4285-a270-340d9a27c7f6",
+      "name": "Write alert message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1536,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ntfy.sh/sla-warning-nicky-84721",
+        "sendBody": true,
+        "contentType": "raw",
+        "body": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1760,
+        96
+      ],
+      "id": "6c230f13-1023-4895-9364-751d95d0be99",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Run manually": {
+      "main": [
+        [
+          {
+            "node": "Get scored tickets from GitHub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every morning at 8:00": {
+      "main": [
+        [
+          {
+            "node": "Get scored tickets from GitHub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get scored tickets from GitHub": {
+      "main": [
+        [
+          {
+            "node": "Read CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read CSV": {
+      "main": [
+        [
+          {
+            "node": "Keep only High risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep only High risk": {
+      "main": [
+        [
+          {
+            "node": "Highest risk first",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Highest risk first": {
+      "main": [
+        [
+          {
+            "node": "Top 5 tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Top 5 tickets": {
+      "main": [
+        [
+          {
+            "node": "Combine into one list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine into one list": {
+      "main": [
+        [
+          {
+            "node": "Write alert message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write alert message": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f88ae785-194d-49a6-9d16-a8c5f33040b8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8144d6718117c356a84c2ac5005efad50bfd848822e0d2d53ce2b4c505beb714"
+  },
+  "nodeGroups": [],
+  "id": "WFSNrL3mVHhH18PZ",
+  "tags": []
+}
