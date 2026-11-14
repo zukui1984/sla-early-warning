@@ -1,0 +1,10 @@
+version: 2
+models:
+  - name: fct_incidents
+    columns:
+      - name: number
+        tests: [unique, not_null]
+      - name: opened_at
+        tests: [not_null]
+      - name: made_sla
+        tests: [not_null]
